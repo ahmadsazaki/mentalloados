@@ -185,6 +185,9 @@ async function initializeDb() {
     if (!profileInfo.some(col => col.name === 'openrouter_api_key')) {
       await db.exec("ALTER TABLE user_profile ADD COLUMN openrouter_api_key TEXT");
     }
+    
+    // Fix invalid legacy model IDs
+    await db.exec("UPDATE user_profile SET ai_model = 'openrouter/free' WHERE ai_model LIKE '%gemini-2.0-flash-lite%' OR ai_model = 'openrouter/auto'");
   }
 }
 
@@ -289,7 +292,13 @@ export async function initApp() {
       let profile: any = { ai_provider: 'openrouter', ai_model: 'openrouter/free', openrouter_api_key: null };
       try {
         const dbProfile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
-        if (dbProfile) profile = dbProfile;
+        if (dbProfile) {
+          profile = dbProfile;
+          // Safeguard: Force valid model if legacy one leaked through
+          if (profile.ai_model.includes('gemini-2.0-flash-lite')) {
+            profile.ai_model = 'openrouter/free';
+          }
+        }
       } catch (e) {
         console.warn("AI Coach: Using default profile settings due to database unavailability.");
       }
