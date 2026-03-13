@@ -198,7 +198,10 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              onBlur={() => onUpdateProfile({ openrouter_api_key: apiKey || null })}
+              onBlur={() => {
+                const trimmed = apiKey.trim();
+                onUpdateProfile({ openrouter_api_key: trimmed || null });
+              }}
               placeholder="sk-or-v1-..."
               className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl border border-black/5 dark:border-white/10 text-sm focus:ring-2 focus:ring-indigo-500/20"
             />

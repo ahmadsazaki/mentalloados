@@ -4,17 +4,22 @@ const OPENROUTER_FREE_KEY = "sk-or-v1-ae9cbe80631d2ba3d3282c56ca19c68d61efc71ba1
 
 export async function extractTasksWithOpenRouter(text: string, model: string = "google/gemini-2.0-flash-lite:free", customApiKey: string | null = null) {
   const isPaidModel = !model.includes("free") && model !== "openrouter/auto";
-  const apiKey = customApiKey || OPENROUTER_FREE_KEY;
   
+  // Sanitize key: ensure no "null" strings or whitespace
+  const cleanCustomKey = (customApiKey && customApiKey.trim() !== "" && customApiKey !== "null" && customApiKey !== "undefined") ? customApiKey.trim() : null;
+  const apiKey = cleanCustomKey || OPENROUTER_FREE_KEY;
+  
+  console.log(`AI: Using key starting with: ${apiKey.substring(0, 8)}...`);
+
   // If model is paid but no custom key, fallback to a guaranteed free model
-  const finalModel = (isPaidModel && !customApiKey) ? "google/gemini-2.0-flash-lite:free" : model;
+  const finalModel = (isPaidModel && !cleanCustomKey) ? "google/gemini-2.0-flash-lite:free" : model;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://mentalloados.local", // Optional, for OpenRouter rankings
-      "X-Title": "MentalLoadOS", // Optional, for OpenRouter rankings
+      "HTTP-Referer": "https://mentalloados.local",
+      "X-Title": "MentalLoadOS",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -46,7 +51,12 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
   const data = await response.json();
   
   if (!response.ok) {
-    console.error("OpenRouter API Error:", response.status, data);
+    const errorMsg = data.error?.message || JSON.stringify(data);
+    console.error("OpenRouter API Detailed Error:", response.status, errorMsg);
+    // Explicitly alert common errors
+    if (response.status === 401) {
+      console.error("AI: Authentication failed. This key might be invalid or expired.");
+    }
     return [];
   }
 
