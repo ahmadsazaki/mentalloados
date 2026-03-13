@@ -2,16 +2,14 @@ import express from "express";
 import "dotenv/config";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import multer from "multer";
 import fs from "fs";
+import { db, isCloud } from "./src/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const db = new Database("mentalload.db");
 
 // Multer storage config
 const storage = multer.diskStorage({
@@ -27,56 +25,62 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Initialize DB
-db.exec(`
-  CREATE TABLE IF NOT EXISTS categories (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    color TEXT NOT NULL,
-    max_capacity INTEGER DEFAULT 50
-  );
-  CREATE TABLE IF NOT EXISTS tokens (
-    id TEXT PRIMARY KEY,
-    access_token TEXT,
-    refresh_token TEXT,
-    expiry_date INTEGER
-  );
-`);
+async function initializeDb() {
+  // Initialize DB
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      max_capacity INTEGER DEFAULT 50
+    );
+    CREATE TABLE IF NOT EXISTS tokens (
+      id TEXT PRIMARY KEY,
+      access_token TEXT,
+      refresh_token TEXT,
+      expiry_date INTEGER
+    );
+  `);
 
-// Seed default categories if empty
-const catCount = db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
-if (catCount.count === 0) {
-  const defaults = [
-    { id: 'work', name: 'Work', color: '#4F6BED', max_capacity: 50 },
-    { id: 'family', name: 'Family', color: '#6BCB77', max_capacity: 30 },
-    { id: 'finance', name: 'Finance', color: '#F4A261', max_capacity: 20 },
-    { id: 'health', name: 'Health', color: '#E63946', max_capacity: 30 },
-    { id: 'admin', name: 'Admin', color: '#8E9299', max_capacity: 20 },
-    { id: 'social', name: 'Social', color: '#A061F4', max_capacity: 20 }
-  ];
-  const insert = db.prepare("INSERT INTO categories (id, name, color, max_capacity) VALUES (?, ?, ?, ?)");
-  defaults.forEach(c => insert.run(c.id, c.name, c.color, c.max_capacity));
-}
+  // Seed default categories if empty
+  const catCount = await db.prepare("SELECT COUNT(*) as count FROM categories").get() as { count: number };
+  if (catCount.count === 0) {
+    const defaults = [
+      { id: 'work', name: 'Work', color: '#4F6BED', max_capacity: 50 },
+      { id: 'family', name: 'Family', color: '#6BCB77', max_capacity: 30 },
+      { id: 'finance', name: 'Finance', color: '#F4A261', max_capacity: 20 },
+      { id: 'health', name: 'Health', color: '#E63946', max_capacity: 30 },
+      { id: 'admin', name: 'Admin', color: '#8E9299', max_capacity: 20 },
+      { id: 'social', name: 'Social', color: '#A061F4', max_capacity: 20 }
+    ];
+    for (const c of defaults) {
+      await db.prepare("INSERT INTO categories (id, name, color, max_capacity) VALUES (?, ?, ?, ?)").run(c.id, c.name, c.color, c.max_capacity);
+    }
+  }
 
-// Migration for categories table
-const currentCategoriesInfo = db.prepare("PRAGMA table_info(categories)").all() as any[];
-if (!currentCategoriesInfo.some(col => col.name === 'max_capacity')) {
-  db.exec("ALTER TABLE categories ADD COLUMN max_capacity INTEGER DEFAULT 50");
-}
+  // Migration for categories table
+  if (!isCloud) {
+    const currentCategoriesInfo = await db.prepare("PRAGMA table_info(categories)").all() as any[];
+    if (!currentCategoriesInfo.some(col => col.name === 'max_capacity')) {
+      await db.exec("ALTER TABLE categories ADD COLUMN max_capacity INTEGER DEFAULT 50");
+    }
+  }
 
-// Migration: Check if tasks table needs update
-const tableInfo = db.prepare("PRAGMA table_info(tasks)").all() as any[];
-const hasCategoryId = tableInfo.some(col => col.name === 'category_id');
+  // Migration: Check if tasks table needs update
+  let tableInfo: any[] = [];
+  if (!isCloud) {
+    tableInfo = await db.prepare("PRAGMA table_info(tasks)").all() as any[];
+  }
+  
+  const hasCategoryId = tableInfo.some(col => col.name === 'category_id');
 
-if (tableInfo.length > 0 && !hasCategoryId) {
-  // Old schema detected, migrate
-  console.log("Migrating tasks table to new schema...");
-  db.transaction(() => {
-    // 1. Rename old table
-    db.exec("ALTER TABLE tasks RENAME TO tasks_old");
-    
-    // 2. Create new table
-    db.exec(`
+  if (tableInfo.length > 0 && !hasCategoryId) {
+    console.log("Migrating tasks table to new schema...");
+    // LibSQL doesn't support easy transactions the same way here, 
+    // but for deployment we assume the target DB is clean or already migrated.
+    // This part is mostly for local legacy support.
+    await db.exec("ALTER TABLE tasks RENAME TO tasks_old");
+    await db.exec(`
       CREATE TABLE tasks (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -102,93 +106,94 @@ if (tableInfo.length > 0 && !hasCategoryId) {
         FOREIGN KEY(category_id) REFERENCES categories(id)
       )
     `);
-    
-    // 3. Copy data
-    db.exec(`
+    await db.exec(`
       INSERT INTO tasks (id, title, description, category_id, effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, completed, archived, deleted, sort_order, created_at)
       SELECT id, title, description, 'work', effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, completed, 0, 0, 0, created_at
       FROM tasks_old
     `);
-    
-    // 4. Drop old table
-    db.exec("DROP TABLE tasks_old");
-  })();
-} else if (tableInfo.length === 0) {
-  // New installation
-  db.exec(`
-    CREATE TABLE tasks (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      category_id TEXT NOT NULL,
-      effort_score INTEGER DEFAULT 5,
-      urgency_score INTEGER DEFAULT 5,
-      decision_score INTEGER DEFAULT 4,
-      coordination_score REAL DEFAULT 0,
-      worry_score INTEGER DEFAULT 0,
-      cognitive_load_score REAL DEFAULT 0,
-      completed INTEGER DEFAULT 0,
-      archived INTEGER DEFAULT 0,
-      deleted INTEGER DEFAULT 0,
-      sort_order REAL DEFAULT 0,
-      due_date TEXT,
-      notes TEXT,
-      raw_context TEXT,
-      attachments TEXT,
-      recurrence_rule TEXT,
-      last_reset_date TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(category_id) REFERENCES categories(id)
-    )
-  `);
-}
-
-// Migration for existing tasks table columns
-const currentTasksInfo = db.prepare("PRAGMA table_info(tasks)").all() as any[];
-const taskColumns = [
-  { name: 'archived', type: 'INTEGER DEFAULT 0' },
-  { name: 'deleted', type: 'INTEGER DEFAULT 0' },
-  { name: 'sort_order', type: 'REAL DEFAULT 0' },
-  { name: 'due_date', type: 'TEXT' },
-  { name: 'notes', type: 'TEXT' },
-  { name: 'raw_context', type: 'TEXT' },
-  { name: 'attachments', type: 'TEXT' },
-  { name: 'recurrence_rule', type: 'TEXT' },
-  { name: 'last_reset_date', type: 'TEXT' }
-];
-
-taskColumns.forEach(col => {
-  if (!currentTasksInfo.some(c => c.name === col.name)) {
-    console.log(`Adding missing column ${col.name} to tasks table...`);
-    db.exec(`ALTER TABLE tasks ADD COLUMN ${col.name} ${col.type}`);
+    await db.exec("DROP TABLE tasks_old");
+  } else if (tableInfo.length === 0) {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        category_id TEXT NOT NULL,
+        effort_score INTEGER DEFAULT 5,
+        urgency_score INTEGER DEFAULT 5,
+        decision_score INTEGER DEFAULT 4,
+        coordination_score REAL DEFAULT 0,
+        worry_score INTEGER DEFAULT 0,
+        cognitive_load_score REAL DEFAULT 0,
+        completed INTEGER DEFAULT 0,
+        archived INTEGER DEFAULT 0,
+        deleted INTEGER DEFAULT 0,
+        sort_order REAL DEFAULT 0,
+        due_date TEXT,
+        notes TEXT,
+        raw_context TEXT,
+        attachments TEXT,
+        recurrence_rule TEXT,
+        last_reset_date TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(category_id) REFERENCES categories(id)
+      )
+    `);
   }
-});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS user_profile (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    daily_capacity INTEGER DEFAULT 120,
-    ai_provider TEXT DEFAULT 'openrouter',
-    ai_model TEXT DEFAULT 'openrouter/auto',
-    openrouter_api_key TEXT
-  );
-`);
-// Migration for user_profile table
-const profileInfo = db.prepare("PRAGMA table_info(user_profile)").all() as any[];
-if (!profileInfo.some(col => col.name === 'ai_provider')) {
-  db.exec("ALTER TABLE user_profile ADD COLUMN ai_provider TEXT DEFAULT 'openrouter'");
-}
-if (!profileInfo.some(col => col.name === 'ai_model')) {
-  db.exec("ALTER TABLE user_profile ADD COLUMN ai_model TEXT DEFAULT 'openrouter/auto'");
-}
-if (!profileInfo.some(col => col.name === 'openrouter_api_key')) {
-  db.exec("ALTER TABLE user_profile ADD COLUMN openrouter_api_key TEXT");
+  // Column migrations
+  if (!isCloud) {
+    const currentTasksInfo = await db.prepare("PRAGMA table_info(tasks)").all() as any[];
+    const taskColumns = [
+      { name: 'archived', type: 'INTEGER DEFAULT 0' },
+      { name: 'deleted', type: 'INTEGER DEFAULT 0' },
+      { name: 'sort_order', type: 'REAL DEFAULT 0' },
+      { name: 'due_date', type: 'TEXT' },
+      { name: 'notes', type: 'TEXT' },
+      { name: 'raw_context', type: 'TEXT' },
+      { name: 'attachments', type: 'TEXT' },
+      { name: 'recurrence_rule', type: 'TEXT' },
+      { name: 'last_reset_date', type: 'TEXT' }
+    ];
+
+    for (const col of taskColumns) {
+      if (!currentTasksInfo.some(c => c.name === col.name)) {
+        console.log(`Adding missing column ${col.name} to tasks table...`);
+        await db.exec(`ALTER TABLE tasks ADD COLUMN ${col.name} ${col.type}`);
+      }
+    }
+  }
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      daily_capacity INTEGER DEFAULT 120,
+      ai_provider TEXT DEFAULT 'openrouter',
+      ai_model TEXT DEFAULT 'openrouter/auto',
+      openrouter_api_key TEXT
+    );
+  `);
+  
+  if (!isCloud) {
+    const profileInfo = await db.prepare("PRAGMA table_info(user_profile)").all() as any[];
+    if (!profileInfo.some(col => col.name === 'ai_provider')) {
+      await db.exec("ALTER TABLE user_profile ADD COLUMN ai_provider TEXT DEFAULT 'openrouter'");
+    }
+    if (!profileInfo.some(col => col.name === 'ai_model')) {
+      await db.exec("ALTER TABLE user_profile ADD COLUMN ai_model TEXT DEFAULT 'openrouter/auto'");
+    }
+    if (!profileInfo.some(col => col.name === 'openrouter_api_key')) {
+      await db.exec("ALTER TABLE user_profile ADD COLUMN openrouter_api_key TEXT");
+    }
+  }
 }
 
-async function startServer() {
+
+export async function initApp() {
+  await initializeDb();
   const app = express();
-  const PORT = 3001;
+  const PORT = process.env.PORT || 3001;
 
   app.use(express.json());
 
@@ -234,7 +239,7 @@ async function startServer() {
     try {
       const { tokens } = await oauth2Client.getToken(code as string);
       
-      db.prepare(`
+      await db.prepare(`
         INSERT OR REPLACE INTO tokens (id, access_token, refresh_token, expiry_date)
         VALUES (?, ?, ?, ?)
       `).run("google", tokens.access_token, tokens.refresh_token, tokens.expiry_date);
@@ -260,8 +265,8 @@ async function startServer() {
     }
   });
 
-  app.get("/api/auth/google/status", (req, res) => {
-    const token = db.prepare("SELECT * FROM tokens WHERE id = ?").get("google");
+  app.get("/api/auth/google/status", async (req, res) => {
+    const token = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google");
     res.json({ connected: !!token });
   });
 
@@ -271,7 +276,7 @@ async function startServer() {
       if (!task) throw new Error("Task context is missing");
       if (!userInput) throw new Error("User input is missing");
 
-      let profile = db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
+      let profile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
       if (!profile) {
         // Fallback or initialization
         profile = { ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
@@ -340,13 +345,13 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
     }
   });
 
-  app.post("/api/auth/google/disconnect", (req, res) => {
-    db.prepare("DELETE FROM tokens WHERE id = ?").run("google");
+  app.post("/api/auth/google/disconnect", async (req, res) => {
+    await db.prepare("DELETE FROM tokens WHERE id = ?").run("google");
     res.json({ success: true });
   });
 
   app.post("/api/calendar/events", async (req, res) => {
-    const tokenRecord = db.prepare("SELECT * FROM tokens WHERE id = ?").get("google") as { access_token: string, refresh_token: string, expiry_date: number };
+    const tokenRecord = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google") as { access_token: string, refresh_token: string, expiry_date: number };
     if (!tokenRecord) {
       return res.status(401).json({ error: "Google not connected" });
     }
@@ -380,36 +385,36 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
   });
 
   // API Routes - Categories
-  app.get("/api/categories", (req, res) => {
-    const categories = db.prepare("SELECT * FROM categories").all();
+  app.get("/api/categories", async (req, res) => {
+    const categories = await db.prepare("SELECT * FROM categories").all();
     res.json(categories);
   });
 
-  app.post("/api/categories", (req, res) => {
+  app.post("/api/categories", async (req, res) => {
     const { id, name, color, max_capacity } = req.body;
-    db.prepare("INSERT INTO categories (id, name, color, max_capacity) VALUES (?, ?, ?, ?)").run(id, name, color, max_capacity || 50);
+    await db.prepare("INSERT INTO categories (id, name, color, max_capacity) VALUES (?, ?, ?, ?)").run(id, name, color, max_capacity || 50);
     res.json({ success: true });
   });
 
-  app.patch("/api/categories/:id", (req, res) => {
+  app.patch("/api/categories/:id", async (req, res) => {
     const { name, color, max_capacity } = req.body;
-    db.prepare("UPDATE categories SET name = ?, color = ?, max_capacity = ? WHERE id = ?").run(name, color, max_capacity || 50, req.params.id);
+    await db.prepare("UPDATE categories SET name = ?, color = ?, max_capacity = ? WHERE id = ?").run(name, color, max_capacity || 50, req.params.id);
     res.json({ success: true });
   });
 
-  app.delete("/api/categories/:id", (req, res) => {
+  app.delete("/api/categories/:id", async (req, res) => {
     // Reassign tasks to 'admin' or first available category before deleting? 
     // Or just delete tasks. Let's reassign to 'admin' if it exists, else first.
-    const firstCat = db.prepare("SELECT id FROM categories WHERE id != ? LIMIT 1").get(req.params.id) as { id: string };
+    const firstCat = await db.prepare("SELECT id FROM categories WHERE id != ? LIMIT 1").get(req.params.id) as { id: string };
     if (firstCat) {
-      db.prepare("UPDATE tasks SET category_id = ? WHERE category_id = ?").run(firstCat.id, req.params.id);
+      await db.prepare("UPDATE tasks SET category_id = ? WHERE category_id = ?").run(firstCat.id, req.params.id);
     }
-    db.prepare("DELETE FROM categories WHERE id = ?").run(req.params.id);
+    await db.prepare("DELETE FROM categories WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
 
   // API Routes - Tasks
-  app.get("/api/tasks", (req, res) => {
+  app.get("/api/tasks", async (req, res) => {
     const includeArchived = req.query.includeArchived === 'true';
     const includeDeleted = req.query.includeDeleted === 'true';
     
@@ -438,7 +443,7 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
 
     query += " ORDER BY tasks.sort_order ASC, tasks.cognitive_load_score DESC";
     
-    const tasks = db.prepare(query).all();
+    const tasks = await db.prepare(query).all();
     res.json(tasks.map((t: any) => ({ ...t, completed: !!t.completed, archived: !!t.archived, deleted: !!t.deleted })));
   });
 
@@ -450,31 +455,24 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
     res.json({ paths });
   });
 
-  app.post("/api/tasks", (req, res) => {
+  app.post("/api/tasks", async (req, res) => {
     const { id, title, description, category_id, effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, due_date, notes, raw_context, attachments, sort_order, recurrence_rule, last_reset_date } = req.body;
-    const stmt = db.prepare(`
+    await db.prepare(`
       INSERT INTO tasks (id, title, description, category_id, effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, completed, archived, deleted, sort_order, due_date, notes, raw_context, attachments, recurrence_rule, last_reset_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    stmt.run(id, title, description, category_id, effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, sort_order || 0, due_date, notes, raw_context, attachments, recurrence_rule, last_reset_date);
+    `).run(id, title, description, category_id, effort_score, urgency_score, decision_score, coordination_score, worry_score, cognitive_load_score, sort_order || 0, due_date, notes, raw_context, attachments, recurrence_rule, last_reset_date);
     res.json({ success: true });
   });
 
-  app.patch("/api/tasks/reorder", (req, res) => {
+  app.patch("/api/tasks/reorder", async (req, res) => {
     const items = req.body as { id: string, sort_order: number }[];
-    const update = db.prepare("UPDATE tasks SET sort_order = ? WHERE id = ?");
-    
-    const transaction = db.transaction((updates) => {
-      for (const item of updates) {
-        update.run(item.sort_order, item.id);
-      }
-    });
-
-    transaction(items);
+    for (const item of items) {
+      await db.prepare("UPDATE tasks SET sort_order = ? WHERE id = ?").run(item.sort_order, item.id);
+    }
     res.json({ success: true });
   });
 
-  app.patch("/api/tasks/bulk", (req, res) => {
+  app.patch("/api/tasks/bulk", async (req, res) => {
     const { ids, updates } = req.body;
     if (!ids || ids.length === 0) return res.json({ success: true });
     
@@ -490,24 +488,24 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
     const placeholders = ids.map(() => '?').join(',');
     const query = `UPDATE tasks SET ${setClause} WHERE id IN (${placeholders})`;
     
-    db.prepare(query).run(...values, ...ids);
+    await db.prepare(query).run(...values, ...ids);
     res.json({ success: true });
   });
 
-  app.delete("/api/tasks/bulk", (req, res) => {
+  app.delete("/api/tasks/bulk", async (req, res) => {
     const { ids, permanent } = req.body;
     if (!ids || ids.length === 0) return res.json({ success: true });
 
     const placeholders = ids.map(() => '?').join(',');
     if (permanent) {
-      db.prepare(`DELETE FROM tasks WHERE id IN (${placeholders})`).run(...ids);
+      await db.prepare(`DELETE FROM tasks WHERE id IN (${placeholders})`).run(...ids);
     } else {
-      db.prepare(`UPDATE tasks SET deleted = 1 WHERE id IN (${placeholders})`).run(...ids);
+      await db.prepare(`UPDATE tasks SET deleted = 1 WHERE id IN (${placeholders})`).run(...ids);
     }
     res.json({ success: true });
   });
 
-  app.patch("/api/tasks/:id", (req, res) => {
+  app.patch("/api/tasks/:id", async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
@@ -518,40 +516,40 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
       return updates[f];
     });
 
-    db.prepare(`UPDATE tasks SET ${setClause} WHERE id = ?`).run(...values, id);
+    await db.prepare(`UPDATE tasks SET ${setClause} WHERE id = ?`).run(...values, id);
     res.json({ success: true });
   });
 
-  app.post("/api/tasks/:id/restore", (req, res) => {
-    db.prepare("UPDATE tasks SET deleted = 0 WHERE id = ?").run(req.params.id);
+  app.post("/api/tasks/:id/restore", async (req, res) => {
+    await db.prepare("UPDATE tasks SET deleted = 0 WHERE id = ?").run(req.params.id);
     res.json({ success: true });
   });
 
-  app.delete("/api/tasks/:id", (req, res) => {
+  app.delete("/api/tasks/:id", async (req, res) => {
     const permanent = req.query.permanent === 'true';
     if (permanent) {
-      db.prepare("DELETE FROM tasks WHERE id = ?").run(req.params.id);
+      await db.prepare("DELETE FROM tasks WHERE id = ?").run(req.params.id);
     } else {
-      db.prepare("UPDATE tasks SET deleted = 1 WHERE id = ?").run(req.params.id);
+      await db.prepare("UPDATE tasks SET deleted = 1 WHERE id = ?").run(req.params.id);
     }
     res.json({ success: true });
   });
 
-  app.get("/api/profile", (req, res) => {
-    let profile = db.prepare("SELECT * FROM user_profile LIMIT 1").get();
+  app.get("/api/profile", async (req, res) => {
+    let profile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get();
     if (!profile) {
       const id = "default-user";
-      db.prepare("INSERT INTO user_profile (id, name, daily_capacity, ai_provider, ai_model, openrouter_api_key) VALUES (?, ?, ?, ?, ?, ?)").run(id, "User", 120, 'openrouter', 'openrouter/auto', null);
+      await db.prepare("INSERT INTO user_profile (id, name, daily_capacity, ai_provider, ai_model, openrouter_api_key) VALUES (?, ?, ?, ?, ?, ?)").run(id, "User", 120, 'openrouter', 'openrouter/auto', null);
       profile = { id, name: "User", daily_capacity: 120, ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
     }
     res.json(profile);
   });
 
-  app.patch("/api/profile", (req, res) => {
+  app.patch("/api/profile", async (req, res) => {
     const { name, daily_capacity, ai_provider, ai_model, openrouter_api_key } = req.body;
-    const current = db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
+    const current = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
     
-    db.prepare(`
+    await db.prepare(`
       UPDATE user_profile 
       SET name = ?, daily_capacity = ?, ai_provider = ?, ai_model = ?, openrouter_api_key = ?
       WHERE id = ?
@@ -567,7 +565,7 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
   });
 
   // Error handler
-  app.use((err, req, res, next) => {
+  app.use((err: any, req: any, res: any, next: any) => {
     console.error(err.stack);
     res.status(500).json({ error: err.message });
   });
@@ -587,9 +585,16 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+    app.listen(Number(PORT), "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  initApp();
+}
+
