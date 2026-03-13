@@ -160,9 +160,12 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
         </div>
 
         <div className="space-y-6">
-          <div className="space-y-2 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10">
+          <form 
+            onSubmit={(e) => e.preventDefault()}
+            className="space-y-2 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10"
+          >
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">OpenRouter API Key</label>
+              <label htmlFor="openrouter-api-key" className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">OpenRouter API Key</label>
               {profile?.openrouter_api_key ? (
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Custom Key Active</span>
               ) : (
@@ -170,7 +173,9 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
               )}
             </div>
             <input
+              id="openrouter-api-key"
               type="password"
+              autoComplete="current-password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               onBlur={() => {
@@ -183,7 +188,7 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
             <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
               Optional. Add your own key for premium models. Leave empty to use the built-in free tier.
             </p>
-          </div>
+          </form>
 
           <div className="space-y-4">
             <div className="space-y-2">
