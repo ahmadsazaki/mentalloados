@@ -30,7 +30,10 @@ export const FikrCoach: React.FC<Props> = ({ task, isOpen, onClose, onUpdateTask
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const scroll = scrollRef.current;
+      requestAnimationFrame(() => {
+        scroll.scrollTop = scroll.scrollHeight;
+      });
     }
   }, [messages]);
 

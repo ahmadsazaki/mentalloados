@@ -281,6 +281,8 @@ export async function initApp() {
   app.post("/api/ai/coach", async (req, res) => {
     try {
       const { task, history = [], userInput, apiKey: bodyApiKey } = req.body;
+      console.log("AI Coach: Received request for task:", task?.title);
+      console.log("AI Coach: Body Key provided:", !!bodyApiKey);
       if (!task) throw new Error("Task context is missing");
       if (!userInput) throw new Error("User input is missing");
 
@@ -319,6 +321,8 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
         reply = result.response.text();
       } else {
         const apiKey = bodyApiKey || profile.openrouter_api_key || process.env.OPENROUTER_API_KEY;
+        console.log("AI Coach: Final API Key source:", bodyApiKey ? "Body" : (profile.openrouter_api_key ? "DB" : (process.env.OPENROUTER_API_KEY ? "ENV" : "NONE")));
+        
         if (!apiKey) throw new Error("OpenRouter API Key is missing. Please set it in Settings.");
 
         console.log("Calling OpenRouter with model:", profile.ai_model);

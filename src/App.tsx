@@ -164,6 +164,17 @@ export default function App() {
     const newProfile = { ...profile, ...updates };
     localDb.setProfile(newProfile);
     setProfile(newProfile);
+
+    // Sync to backend DB for persistence across devices/sessions
+    try {
+      await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+    } catch (error) {
+      console.error("Failed to sync profile to server", error);
+    }
   };
 
   const handleDeleteCategory = async (id: string) => {
