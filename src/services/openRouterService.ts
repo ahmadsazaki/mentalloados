@@ -53,9 +53,14 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
   if (!response.ok) {
     const errorMsg = data.error?.message || JSON.stringify(data);
     console.error("OpenRouter API Detailed Error:", response.status, errorMsg);
+    
     // Explicitly alert common errors
     if (response.status === 401) {
-      console.error("AI: Authentication failed. This key might be invalid or expired.");
+      if (errorMsg.toLowerCase().includes("user not found")) {
+        console.error("AI: CRITICAL - The API key provided is INVALID or the account was deleted. Please generate a NEW key at https://openrouter.ai/keys");
+      } else {
+        console.error("AI: Authentication failed. Please check your key or credits/limits at OpenRouter.");
+      }
     }
     return [];
   }
