@@ -2,12 +2,12 @@
 
 const OPENROUTER_FREE_KEY = "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";
 
-export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/auto", customApiKey: string | null = null) {
+export async function extractTasksWithOpenRouter(text: string, model: string = "google/gemini-2.0-flash-lite:free", customApiKey: string | null = null) {
   const isPaidModel = !model.includes("free") && model !== "openrouter/auto";
   const apiKey = customApiKey || OPENROUTER_FREE_KEY;
   
-  // If model is paid but no custom key, fallback to auto
-  const finalModel = (isPaidModel && !customApiKey) ? "openrouter/auto" : model;
+  // If model is paid but no custom key, fallback to a guaranteed free model
+  const finalModel = (isPaidModel && !customApiKey) ? "google/gemini-2.0-flash-lite:free" : model;
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -18,7 +18,7 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      "model": model,
+      "model": finalModel,
       "messages": [
         {
           "role": "system",

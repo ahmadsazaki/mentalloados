@@ -53,7 +53,15 @@ export const localDb = {
       localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(DEFAULT_PROFILE));
       return DEFAULT_PROFILE;
     }
-    return JSON.parse(data);
+    const profile = JSON.parse(data);
+    
+    // Migration: Update old 'openrouter/auto' default to a guaranteed free model
+    if (profile.ai_model === 'openrouter/auto') {
+      profile.ai_model = 'google/gemini-2.0-flash-lite:free';
+      localDb.setProfile(profile);
+    }
+    
+    return profile;
   },
 
   setProfile: (profile: UserProfile) => {
