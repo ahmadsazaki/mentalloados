@@ -1,6 +1,5 @@
 import express from "express";
 import "dotenv/config";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
@@ -572,6 +571,7 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
