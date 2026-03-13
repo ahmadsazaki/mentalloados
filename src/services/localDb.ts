@@ -22,7 +22,7 @@ const DEFAULT_PROFILE: UserProfile = {
   ai_provider: 'gemini',
   ai_model: 'gemini-2.0-flash-lite',
   openrouter_api_key: '',
-  gemini_api_key: 'AIzaSyC4sVVI8BSgC9FACXV56uqOZ4-kk49mGzA'
+  gemini_api_key: 'AIzaSyDlrnx2SQqkqyTK6_lYmYKr512k1GKSxoQ'
 };
 
 export const localDb = {
@@ -56,14 +56,21 @@ export const localDb = {
     }
     const profile = JSON.parse(data);
     
-    // Migration: ensure gemini_api_key field exists
-    if (profile.gemini_api_key === undefined || !profile.gemini_api_key) {
-      profile.gemini_api_key = 'AIzaSyC4sVVI8BSgC9FACXV56uqOZ4-kk49mGzA';
+    let needsSave = false;
+    
+    // Migration: ensure gemini_api_key field exists and has default
+    if (!profile.gemini_api_key) {
+      profile.gemini_api_key = 'AIzaSyDlrnx2SQqkqyTK6_lYmYKr512k1GKSxoQ';
+      needsSave = true;
     }
     // Migration: switch to gemini as default provider
-    if (profile.ai_model === 'openrouter/auto' || profile.ai_model === 'google/gemini-2.0-flash-lite:free' || profile.ai_model === 'openrouter/free') {
+    if (profile.ai_provider !== 'gemini' || profile.ai_model !== 'gemini-2.0-flash-lite') {
       profile.ai_provider = 'gemini';
       profile.ai_model = 'gemini-2.0-flash-lite';
+      needsSave = true;
+    }
+    
+    if (needsSave) {
       localDb.setProfile(profile);
     }
     
