@@ -219,8 +219,11 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
                   onChange={(e) => onUpdateProfile({ ai_model: e.target.value })}
                   className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10 text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <optgroup label="General / Auto">
+                  <optgroup label="Free Models">
+                    <option value="openrouter/free">OpenRouter Free (Default)</option>
                     <option value="google/gemini-2.0-flash-lite:free">Gemini 2.0 Flash Lite (Free)</option>
+                  </optgroup>
+                  <optgroup label="General / Auto">
                     <option value="openrouter/auto">OpenRouter Auto (Best Available)</option>
                   </optgroup>
                   <optgroup label="High Performance (Requires API Key)" disabled={!profile?.openrouter_api_key}>
