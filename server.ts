@@ -284,7 +284,7 @@ export async function initApp() {
       if (!task) throw new Error("Task context is missing");
       if (!userInput) throw new Error("User input is missing");
 
-      let profile: any = { ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
+      let profile: any = { ai_provider: 'openrouter', ai_model: 'google/gemini-2.0-flash-lite:free', openrouter_api_key: null };
       try {
         const dbProfile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
         if (dbProfile) profile = dbProfile;

@@ -106,6 +106,11 @@ export default function App() {
       if (!profile) return;
       const extractedTasks = await extractTasks(text, profile.ai_provider, profile.ai_model, profile.openrouter_api_key);
       
+      if (!extractedTasks || extractedTasks.length === 0) {
+        alert("Could not extract any tasks. Please check your AI API key in Settings > Integrations.");
+        return;
+      }
+      
       for (const t of extractedTasks) {
         const coordination = calculateCoordination(t.participants);
         const cls = calculateCLS({ ...t, coordination_score: coordination });

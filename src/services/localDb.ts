@@ -20,7 +20,7 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Guest User',
   daily_capacity: 120,
   ai_provider: 'openrouter',
-  ai_model: 'openrouter/auto',
+  ai_model: 'google/gemini-2.0-flash-lite:free',
   openrouter_api_key: ''
 };
 

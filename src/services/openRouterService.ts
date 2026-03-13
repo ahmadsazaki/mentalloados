@@ -45,13 +45,22 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
 
   const data = await response.json();
   
+  if (!response.ok) {
+    console.error("OpenRouter API Error:", response.status, data);
+    return [];
+  }
+
   try {
-    const content = data.choices[0].message.content;
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      console.warn("OpenRouter returned no content", data);
+      return [];
+    }
     const parsed = JSON.parse(content);
     // OpenRouter might return { "tasks": [...] } or just [...]
     return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
   } catch (e) {
-    console.error("Failed to parse OpenRouter response", e, data);
+    console.error("Failed to parse OpenRouter response content", e, data);
     return [];
   }
 }
