@@ -1,0 +1,5 @@
+{
+  "name": "MentalLoadOS",
+  "description": "A cognitive operating system that captures, measures, visualizes, and optimizes your mental load using AI-powered task extraction and cognitive load scoring.",
+  "requestFramePermissions": ["microphone"]
+}
