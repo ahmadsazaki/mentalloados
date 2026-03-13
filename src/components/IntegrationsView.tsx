@@ -160,31 +160,6 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
         </div>
 
         <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10">
-            <div>
-              <p className="text-sm font-medium">Provider</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Choose your cognitive extraction engine</p>
-            </div>
-            <div className="flex bg-white dark:bg-slate-900 p-1 rounded-lg border border-black/5 dark:border-white/10">
-              <button
-                onClick={() => onUpdateProfile({ ai_provider: 'openrouter' })}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  profile?.ai_provider === 'openrouter' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                OpenRouter
-              </button>
-              <button
-                onClick={() => onUpdateProfile({ ai_provider: 'gemini' })}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  profile?.ai_provider === 'gemini' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                }`}
-              >
-                Gemini (Studio)
-              </button>
-            </div>
-          </div>
-
           <div className="space-y-2 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10">
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">OpenRouter API Key</label>
@@ -206,64 +181,32 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
               className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl border border-black/5 dark:border-white/10 text-sm focus:ring-2 focus:ring-indigo-500/20"
             />
             <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
-              Required for high-performance models (Claude, GPT-4, etc). Leave empty to use OpenRouter's free tier.
+              Optional. Add your own key for premium models. Leave empty to use the built-in free tier.
             </p>
           </div>
 
-          {profile?.ai_provider === 'openrouter' && (
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Extraction Model</label>
-              <div className="relative">
-                <select
-                  value={profile.ai_model}
-                  onChange={(e) => onUpdateProfile({ ai_model: e.target.value })}
-                  className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10 text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <optgroup label="Free Models">
-                    <option value="openrouter/free">OpenRouter Free (Default)</option>
-                    <option value="google/gemini-2.0-flash-lite:free">Gemini 2.0 Flash Lite (Free)</option>
-                  </optgroup>
-                  <optgroup label="General / Auto">
-                    <option value="openrouter/auto">OpenRouter Auto (Best Available)</option>
-                  </optgroup>
-                  <optgroup label="High Performance (Requires API Key)" disabled={!profile?.openrouter_api_key}>
-                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                    <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                    <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
-                  </optgroup>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Extraction Model</label>
+            <div className="relative">
+              <select
+                value={profile?.ai_model}
+                onChange={(e) => onUpdateProfile({ ai_model: e.target.value })}
+                className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10 text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <optgroup label="Free Models">
+                  <option value="openrouter/auto">OpenRouter Auto (Default)</option>
+                  <option value="google/gemini-2.0-flash-lite:free">Gemini 2.0 Flash Lite (Free)</option>
+                </optgroup>
+                <optgroup label="High Performance (Requires API Key)" disabled={!profile?.openrouter_api_key}>
+                  <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+                </optgroup>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
-          )}
-
-          {profile?.ai_provider === 'gemini' && (
-            <div className="space-y-2 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Gemini API Key</label>
-                {profile?.gemini_api_key ? (
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Key Active</span>
-                ) : (
-                  <span className="text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">Key Required</span>
-                )}
-              </div>
-              <input
-                type="password"
-                value={profile?.gemini_api_key || ''}
-                onChange={(e) => onUpdateProfile({ gemini_api_key: e.target.value })}
-                onBlur={(e) => {
-                  const trimmed = e.target.value.trim();
-                  onUpdateProfile({ gemini_api_key: trimmed || null });
-                }}
-                placeholder="AIza..."
-                className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl border border-black/5 dark:border-white/10 text-sm focus:ring-2 focus:ring-indigo-500/20"
-              />
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                Get a free API key from <a href="https://aistudio.google.com/apikey" target="_blank" className="text-indigo-500 underline font-medium">Google AI Studio</a>. Uses the Gemini 2.0 Flash Lite model (free).
-              </p>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 

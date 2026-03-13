@@ -38,5 +38,4 @@ export interface UserProfile {
   ai_provider: string;
   ai_model: string;
   openrouter_api_key: string | null;
-  gemini_api_key: string | null;
 }
