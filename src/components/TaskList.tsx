@@ -59,7 +59,6 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
         <motion.div
           ref={provided.innerRef}
           {...provided.draggableProps}
-          {...provided.dragHandleProps}
           layout
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -67,7 +66,7 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
           whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
           whileTap={view === 'active' ? { scale: 0.98 } : {}}
           transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
-          className={`group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-xl z-50' : 'border-black/5 dark:border-white/10 hover:shadow-md'} cursor-pointer ${task.completed && !isSelectionMode ? 'opacity-50' : ''} ${selectedIds?.has(task.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
+          className={`group flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-xl z-50' : 'border-black/5 dark:border-white/10 hover:shadow-md'} cursor-pointer ${task.completed && !isSelectionMode ? 'opacity-50' : ''} ${selectedIds?.has(task.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
           onClick={(e) => {
             // Prevent click if we're clicking a button or checkbox inside
             if (isSelectionMode) {
@@ -77,6 +76,14 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
             }
           }}
         >
+          {view === 'active' && !isSelectionMode && (
+            <div 
+              {...provided.dragHandleProps}
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-2 text-gray-300 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500"
+            >
+              <GripVertical className="w-5 h-5" />
+            </div>
+          )}
           {isSelectionMode ? (
             <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
               <input 
@@ -190,7 +197,7 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
                   e.stopPropagation();
                   onDelete(task.id);
                 }}
-                className="opacity-30 hover:opacity-100 p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                className="opacity-50 hover:opacity-100 p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                 title="Delete Task"
               >
                 <Trash2 className="w-4 h-4" />
@@ -210,6 +217,7 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
             {...provided.droppableProps}
             ref={provided.innerRef}
             className="space-y-3 min-h-[50px]"
+            style={{ touchAction: 'pan-y' }}
           >
             <AnimatePresence mode="popLayout">
               {tasks.map((task, index) => renderTask(task, index))}

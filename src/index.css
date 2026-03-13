@@ -9,7 +9,6 @@
 body {
   @apply font-sans antialiased;
   scrollbar-gutter: stable;
-  touch-action: pan-y;
 }
 
 .font-mono {
