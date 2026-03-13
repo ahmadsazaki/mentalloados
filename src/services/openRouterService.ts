@@ -1,29 +1,27 @@
 
+export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/auto", customApiKey: string | null = null) {
+  // API key must be provided by the user via Settings > Integrations (stored in localStorage)
+  // NEVER hardcode keys here — OpenRouter auto-revokes keys found in public repos
+  const apiKey = customApiKey?.trim() || null;
 
-const OPENROUTER_FREE_KEY = "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";
+  if (!apiKey) {
+    console.error("AI: No OpenRouter API key configured. Please add your key in Settings > Integrations.");
+    return [];
+  }
 
-export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/free", customApiKey: string | null = null) {
-  const isPaidModel = !model.includes("free") && model !== "openrouter/auto";
-  
-  // Sanitize key: ensure no "null" strings or whitespace
-  const cleanCustomKey = (customApiKey && customApiKey.trim() !== "" && customApiKey !== "null" && customApiKey !== "undefined") ? customApiKey.trim() : null;
-  const apiKey = cleanCustomKey || OPENROUTER_FREE_KEY;
-  
-  console.log(`AI: Using key starting with: ${apiKey.substring(0, 8)}...`);
-
-  // If model is paid but no custom key, fallback to a guaranteed free model
-  const finalModel = (isPaidModel && !cleanCustomKey) ? "openrouter/free" : model;
+  console.log(`AI: Using key starting with: ${apiKey.substring(0, 12)}...`);
+  console.log(`AI: Using model: ${model}`);
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://mentalloados.local",
+      "HTTP-Referer": "https://mentalloados.vercel.app",
       "X-Title": "MentalLoadOS",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      "model": finalModel,
+      "model": model,
       "messages": [
         {
           "role": "system",
@@ -52,16 +50,7 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
   
   if (!response.ok) {
     const errorMsg = data.error?.message || JSON.stringify(data);
-    console.error("OpenRouter API Detailed Error:", response.status, errorMsg);
-    
-    // Explicitly alert common errors
-    if (response.status === 401) {
-      if (errorMsg.toLowerCase().includes("user not found")) {
-        console.error("AI: CRITICAL - The API key provided is INVALID or the account was deleted. Please generate a NEW key at https://openrouter.ai/keys");
-      } else {
-        console.error("AI: Authentication failed. Please check your key or credits/limits at OpenRouter.");
-      }
-    }
+    console.error("OpenRouter API Error:", response.status, errorMsg);
     return [];
   }
 
@@ -72,10 +61,9 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
       return [];
     }
     const parsed = JSON.parse(content);
-    // OpenRouter might return { "tasks": [...] } or just [...]
     return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
   } catch (e) {
-    console.error("Failed to parse OpenRouter response content", e, data);
+    console.error("Failed to parse OpenRouter response", e, data);
     return [];
   }
 }

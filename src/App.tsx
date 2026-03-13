@@ -107,7 +107,7 @@ export default function App() {
       const extractedTasks = await extractTasks(text, profile.ai_model, profile.openrouter_api_key);
       
       if (!extractedTasks || extractedTasks.length === 0) {
-        alert("Could not extract any tasks. Please check your AI API key in Settings > Integrations.");
+        alert("Could not extract tasks. Please make sure you have added your OpenRouter API key in Settings > Integrations.\n\nGet a free key at: openrouter.ai/keys");
         return;
       }
       
