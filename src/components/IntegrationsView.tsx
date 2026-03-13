@@ -185,26 +185,48 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
             </p>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Extraction Model</label>
-            <div className="relative">
-              <select
-                value={profile?.ai_model}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Extraction Model Selector</label>
+              <div className="relative">
+                <select
+                  value={['openrouter/free', 'google/gemini-2.0-flash-lite:free', 'openrouter/auto', 'google/gemini-2.0-flash-001', 'anthropic/claude-3.5-sonnet', 'openai/gpt-4o-mini', 'deepseek/deepseek-chat'].includes(profile?.ai_model || '') ? profile?.ai_model : 'custom'}
+                  onChange={(e) => {
+                    if (e.target.value !== 'custom') {
+                      onUpdateProfile({ ai_model: e.target.value });
+                    }
+                  }}
+                  className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10 text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <optgroup label="Free Models">
+                    <option value="openrouter/free">OpenRouter Free (Default)</option>
+                    <option value="google/gemini-2.0-flash-lite:free">Gemini 2.0 Flash Lite (Free)</option>
+                  </optgroup>
+                  <optgroup label="High Performance (Requires API Key)" disabled={!profile?.openrouter_api_key}>
+                    <option value="openrouter/auto">OpenRouter Auto (Best Available)</option>
+                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                    <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                    <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
+                  </optgroup>
+                  <option value="custom">Custom Model Overide...</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Manual Model ID</label>
+              <input
+                type="text"
+                value={profile?.ai_model || ''}
                 onChange={(e) => onUpdateProfile({ ai_model: e.target.value })}
-                className="w-full p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10 text-sm appearance-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                <optgroup label="Free Models">
-                  <option value="openrouter/auto">OpenRouter Auto (Default)</option>
-                  <option value="google/gemini-2.0-flash-lite:free">Gemini 2.0 Flash Lite (Free)</option>
-                </optgroup>
-                <optgroup label="High Performance (Requires API Key)" disabled={!profile?.openrouter_api_key}>
-                  <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                  <option value="deepseek/deepseek-chat">DeepSeek Chat</option>
-                </optgroup>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                placeholder="e.g. meta-llama/llama-3.1-405b"
+                className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl border border-black/5 dark:border-white/10 text-sm focus:ring-2 focus:ring-indigo-500/20"
+              />
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed italic">
+                Tip: You can find model IDs at <a href="https://openrouter.ai/models" target="_blank" className="text-indigo-500 underline">openrouter.ai/models</a>
+              </p>
             </div>
           </div>
         </div>

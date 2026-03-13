@@ -20,7 +20,7 @@ const DEFAULT_PROFILE: UserProfile = {
   name: 'Guest User',
   daily_capacity: 120,
   ai_provider: 'openrouter',
-  ai_model: 'openrouter/auto',
+  ai_model: 'openrouter/free',
   openrouter_api_key: ''
 };
 
@@ -57,10 +57,10 @@ export const localDb = {
     
     let needsSave = false;
     
-    // Migration: switch to openrouter if on gemini
-    if (profile.ai_provider === 'gemini') {
+    // Migration: switch to openrouter if on gemini or old format
+    if (profile.ai_provider === 'gemini' || !profile.ai_model || profile.ai_model.includes('flash-lite')) {
       profile.ai_provider = 'openrouter';
-      profile.ai_model = 'openrouter/auto';
+      profile.ai_model = 'openrouter/free';
       needsSave = true;
     }
     // Migration: remove gemini_api_key if present
