@@ -286,7 +286,7 @@ export async function initApp() {
       if (!task) throw new Error("Task context is missing");
       if (!userInput) throw new Error("User input is missing");
 
-      let profile: any = { ai_provider: 'openrouter', ai_model: 'google/gemini-2.0-flash-lite:free', openrouter_api_key: null };
+      let profile: any = { ai_provider: 'openrouter', ai_model: 'openrouter/free', openrouter_api_key: null };
       try {
         const dbProfile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
         if (dbProfile) profile = dbProfile;
@@ -553,8 +553,8 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
     let profile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get();
     if (!profile) {
       const id = "default-user";
-      await db.prepare("INSERT INTO user_profile (id, name, daily_capacity, ai_provider, ai_model, openrouter_api_key) VALUES (?, ?, ?, ?, ?, ?)").run(id, "User", 120, 'openrouter', 'openrouter/auto', null);
-      profile = { id, name: "User", daily_capacity: 120, ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
+      await db.prepare("INSERT INTO user_profile (id, name, daily_capacity, ai_provider, ai_model, openrouter_api_key) VALUES (?, ?, ?, ?, ?, ?)").run(id, "User", 120, 'openrouter', 'openrouter/free', null);
+      profile = { id, name: "User", daily_capacity: 120, ai_provider: 'openrouter', ai_model: 'openrouter/free', openrouter_api_key: null };
     }
     res.json(profile);
   });
