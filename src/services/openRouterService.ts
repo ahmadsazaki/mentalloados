@@ -41,8 +41,7 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
           "role": "user",
           "content": text
         }
-      ],
-      "response_format": { "type": "json_object" }
+      ]
     })
   });
 
