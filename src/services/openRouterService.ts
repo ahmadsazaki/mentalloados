@@ -1,6 +1,6 @@
 
 
-const OPENROUTER_FREE_KEY = "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";
+const OPENROUTER_FREE_KEY = "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";
 
 export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/free", customApiKey: string | null = null) {
   const isPaidModel = !model.includes("free") && model !== "openrouter/auto";
