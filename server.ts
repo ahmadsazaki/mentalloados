@@ -270,8 +270,12 @@ export async function initApp() {
   });
 
   app.get("/api/auth/google/status", async (req, res) => {
-    const token = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google");
-    res.json({ connected: !!token });
+    try {
+      const token = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google");
+      res.json({ connected: !!token });
+    } catch (e) {
+      res.json({ connected: false });
+    }
   });
 
   app.post("/api/ai/coach", async (req, res) => {
@@ -280,10 +284,12 @@ export async function initApp() {
       if (!task) throw new Error("Task context is missing");
       if (!userInput) throw new Error("User input is missing");
 
-      let profile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
-      if (!profile) {
-        // Fallback or initialization
-        profile = { ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
+      let profile: any = { ai_provider: 'openrouter', ai_model: 'openrouter/auto', openrouter_api_key: null };
+      try {
+        const dbProfile = await db.prepare("SELECT * FROM user_profile LIMIT 1").get() as any;
+        if (dbProfile) profile = dbProfile;
+      } catch (e) {
+        console.warn("AI Coach: Using default profile settings due to database unavailability.");
       }
       
       // Construct prompt
@@ -355,23 +361,23 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
   });
 
   app.post("/api/calendar/events", async (req, res) => {
-    const tokenRecord = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google") as { access_token: string, refresh_token: string, expiry_date: number };
-    if (!tokenRecord) {
-      return res.status(401).json({ error: "Google not connected" });
-    }
-
-    const { summary, description, startDateTime, endDateTime } = req.body;
-    
-    const oauth2Client = getOAuthClient();
-    oauth2Client.setCredentials({
-      access_token: tokenRecord.access_token,
-      refresh_token: tokenRecord.refresh_token,
-      expiry_date: tokenRecord.expiry_date
-    });
-
-    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
     try {
+      const tokenRecord = await db.prepare("SELECT * FROM tokens WHERE id = ?").get("google") as { access_token: string, refresh_token: string, expiry_date: number };
+      if (!tokenRecord) {
+        return res.status(401).json({ error: "Google not connected" });
+      }
+
+      const { summary, description, startDateTime, endDateTime } = req.body;
+      
+      const oauth2Client = getOAuthClient();
+      oauth2Client.setCredentials({
+        access_token: tokenRecord.access_token,
+        refresh_token: tokenRecord.refresh_token,
+        expiry_date: tokenRecord.expiry_date
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+
       const eventRes = await calendar.events.insert({
         calendarId: 'primary',
         requestBody: {
@@ -384,7 +390,7 @@ Be concise, empathetic, and action-oriented. If the user seems overwhelmed, help
       res.json({ success: true, event: eventRes.data });
     } catch (error: any) {
       console.error("Google Calendar error:", error);
-      res.status(500).json({ error: "Failed to create event", details: error.message });
+      res.status(500).json({ error: "Failed to create event", details: error.message || "Database or API unavailable" });
     }
   });
 
