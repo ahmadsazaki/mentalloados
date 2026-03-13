@@ -1,31 +1,56 @@
 import { createClient } from "@libsql/client";
 import "dotenv/config";
 
-const isTurso = !!process.env.TURSO_URL;
+const isVercel = !!process.env.VERCEL;
+const tursoUrl = process.env.TURSO_URL || process.env.LIBSQL_URL;
+const isTurso = !!tursoUrl;
+
+if (isVercel && !isTurso) {
+  console.warn("⚠️ TURSO_URL or LIBSQL_URL is missing in Vercel environment. Database will likely fail to initialize.");
+}
 
 class LibsqlProvider {
   private client;
   constructor() {
     this.client = createClient({
-      url: process.env.TURSO_URL!,
+      url: tursoUrl!,
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
   }
 
   async exec(sql: string) {
-    await this.client.execute(sql);
+    try {
+      await this.client.execute(sql);
+    } catch (e: any) {
+      console.error("LibSQL exec error:", e);
+      throw new Error(`Cloud Database Error: ${e.message}`);
+    }
   }
 
   prepare(sql: string) {
     return {
-      run: async (...args: any[]) => await this.client.execute({ sql, args }),
+      run: async (...args: any[]) => {
+        try {
+          return await this.client.execute({ sql, args });
+        } catch (e: any) {
+          throw new Error(`Cloud Database Run Error: ${e.message}`);
+        }
+      },
       get: async (...args: any[]) => {
-        const res = await this.client.execute({ sql, args });
-        return res.rows[0];
+        try {
+          const res = await this.client.execute({ sql, args });
+          return res.rows[0];
+        } catch (e: any) {
+          throw new Error(`Cloud Database Get Error: ${e.message}`);
+        }
       },
       all: async (...args: any[]) => {
-        const res = await this.client.execute({ sql, args });
-        return res.rows;
+        try {
+          const res = await this.client.execute({ sql, args });
+          return res.rows;
+        } catch (e: any) {
+          throw new Error(`Cloud Database All Error: ${e.message}`);
+        }
       }
     };
   }
@@ -52,6 +77,9 @@ class SqliteProvider {
 
   private async getDb() {
     if (!this.db) {
+      if (isVercel) {
+          throw new Error("Local SQLite is not supported on Vercel. Please set TURSO_URL and TURSO_AUTH_TOKEN environment variables.");
+      }
       const Database = (await import("better-sqlite3")).default;
       this.db = new Database("mentalload.db");
     }
@@ -81,7 +109,6 @@ class SqliteProvider {
   }
 
   async transaction(fn: (tx: any) => Promise<void>) {
-    // Basic implementation for SQLite transaction
     const db = await this.getDb();
     db.transaction(async () => {
         await fn({
