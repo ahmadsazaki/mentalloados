@@ -248,6 +248,10 @@ export default function App() {
   const totalCLS = activeTasks.reduce((acc, t) => acc + t.cognitive_load_score, 0);
   const nextBestAction = activeTasks.sort((a, b) => b.cognitive_load_score - a.cognitive_load_score)[0];
 
+  const openTaskDetail = (task: Task) => {
+    setSelectedTask(task);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center">
@@ -396,7 +400,7 @@ export default function App() {
                     onUpdate={handleUpdateTask}
                     onReorder={handleReorderTasks}
                     onDelete={handleDeleteTask} 
-                    onTaskClick={setSelectedTask}
+                    onOpenDetail={openTaskDetail}
                     isSelectionMode={isSelectionMode}
                     selectedIds={selectedTaskIds}
                     onSelect={handleSelectTask}
@@ -410,7 +414,7 @@ export default function App() {
                       onToggle={(id, comp) => handleUpdateTask(id, { completed: comp })} 
                       onUpdate={handleUpdateTask}
                       onDelete={handleDeleteTask} 
-                      onTaskClick={setSelectedTask}
+                      onOpenDetail={openTaskDetail}
                       isSelectionMode={isSelectionMode}
                       selectedIds={selectedTaskIds}
                       onSelect={handleSelectTask}
@@ -426,7 +430,7 @@ export default function App() {
                   onToggle={(id, comp) => handleUpdateTask(id, { completed: comp })} 
                   onUpdate={handleUpdateTask}
                   onDelete={handleDeleteTask} 
-                  onTaskClick={setSelectedTask}
+                  onOpenDetail={openTaskDetail}
                   isSelectionMode={isSelectionMode}
                   selectedIds={selectedTaskIds}
                   onSelect={handleSelectTask}
@@ -441,7 +445,7 @@ export default function App() {
                   onUpdate={handleUpdateTask}
                   onDelete={(id) => handleDeleteTask(id, true)} 
                   onRestore={handleRestoreTask}
-                  onTaskClick={setSelectedTask}
+                  onOpenDetail={openTaskDetail}
                   isSelectionMode={isSelectionMode}
                   selectedIds={selectedTaskIds}
                   onSelect={handleSelectTask}

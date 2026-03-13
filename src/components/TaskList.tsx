@@ -10,7 +10,7 @@ interface Props {
   onUpdate?: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
   onRestore?: (id: string) => void;
-  onTaskClick: (task: Task) => void;
+  onOpenDetail: (task: Task) => void;
   onReorder?: (reorderedTasks: Task[]) => void;
   selectedIds?: Set<string>;
   onSelect?: (id: string, selected: boolean) => void;
@@ -18,7 +18,7 @@ interface Props {
   view?: 'active' | 'archived' | 'trash';
 }
 
-export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete, onRestore, onTaskClick, onReorder, selectedIds, onSelect, isSelectionMode, view = 'active' }) => {
+export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete, onRestore, onOpenDetail, onReorder, selectedIds, onSelect, isSelectionMode, view = 'active' }) => {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
 
@@ -68,11 +68,12 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
           whileTap={view === 'active' ? { scale: 0.98 } : {}}
           transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
           className={`group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-xl z-50' : 'border-black/5 dark:border-white/10 hover:shadow-md'} cursor-pointer ${task.completed && !isSelectionMode ? 'opacity-50' : ''} ${selectedIds?.has(task.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
-          onClick={() => {
+          onClick={(e) => {
+            // Prevent click if we're clicking a button or checkbox inside
             if (isSelectionMode) {
               onSelect?.(task.id, !selectedIds?.has(task.id));
             } else {
-              onTaskClick(task);
+              onOpenDetail(task);
             }
           }}
         >
