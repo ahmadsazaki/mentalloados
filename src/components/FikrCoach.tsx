@@ -14,9 +14,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  apiKey: string | null;
 }
 
-export const FikrCoach: React.FC<Props> = ({ task, isOpen, onClose, onUpdateTask }) => {
+export const FikrCoach: React.FC<Props> = ({ task, isOpen, onClose, onUpdateTask, apiKey }) => {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
@@ -50,7 +51,8 @@ export const FikrCoach: React.FC<Props> = ({ task, isOpen, onClose, onUpdateTask
         body: JSON.stringify({
           task,
           history: messages,
-          userInput: userMsg
+          userInput: userMsg,
+          apiKey: apiKey
         })
       });
 

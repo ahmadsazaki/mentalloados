@@ -547,6 +547,7 @@ export default function App() {
             onUpdate={handleUpdateTask}
             onDelete={handleDeleteTask}
             onArchive={handleArchiveTask}
+            apiKey={profile?.openrouter_api_key || null}
           />
         )}
       </AnimatePresence>

@@ -10,9 +10,10 @@ interface Props {
   onUpdate: (id: string, updates: Partial<Task>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onArchive: (id: string, archived: boolean) => Promise<void>;
+  apiKey: string | null;
 }
 
-export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, onArchive }) => {
+export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, onArchive, apiKey }) => {
   const [isCoachOpen, setIsCoachOpen] = useState(false);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isPushingToCalendar, setIsPushingToCalendar] = useState(false);
@@ -317,6 +318,7 @@ export const TaskDetailModal: React.FC<Props> = ({ task, onClose, onUpdate, onDe
         isOpen={isCoachOpen} 
         onClose={() => setIsCoachOpen(false)} 
         onUpdateTask={onUpdate}
+        apiKey={apiKey}
       />
     </div>
   );

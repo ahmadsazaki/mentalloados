@@ -190,7 +190,7 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
                   e.stopPropagation();
                   onDelete(task.id);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                className="opacity-30 hover:opacity-100 p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                 title="Delete Task"
               >
                 <Trash2 className="w-4 h-4" />
