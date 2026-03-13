@@ -1,5 +1,4 @@
 import { createClient } from "@libsql/client";
-import Database from "better-sqlite3";
 import "dotenv/config";
 
 const isTurso = !!process.env.TURSO_URL;
@@ -49,30 +48,47 @@ class LibsqlProvider {
 }
 
 class SqliteProvider {
-  private db;
-  constructor() {
-    this.db = new Database("mentalload.db");
+  private db: any = null;
+
+  private async getDb() {
+    if (!this.db) {
+      const Database = (await import("better-sqlite3")).default;
+      this.db = new Database("mentalload.db");
+    }
+    return this.db;
   }
 
   async exec(sql: string) {
-    this.db.exec(sql);
+    const db = await this.getDb();
+    db.exec(sql);
   }
 
   prepare(sql: string) {
-    const stmt = this.db.prepare(sql);
     return {
-      run: async (...args: any[]) => stmt.run(...args),
-      get: async (...args: any[]) => stmt.get(...args),
-      all: async (...args: any[]) => stmt.all(...args)
+      run: async (...args: any[]) => {
+        const db = await this.getDb();
+        return db.prepare(sql).run(...args);
+      },
+      get: async (...args: any[]) => {
+        const db = await this.getDb();
+        return db.prepare(sql).get(...args);
+      },
+      all: async (...args: any[]) => {
+        const db = await this.getDb();
+        return db.prepare(sql).all(...args);
+      }
     };
   }
 
   async transaction(fn: (tx: any) => Promise<void>) {
-    const trans = this.db.transaction((args: any) => {
-       // Note: this won't work perfectly with async inside, 
-       // but for our current server.ts usage (reorder), it's close enough if we change reorder logic.
-    });
-    // For MentalLoadOS, let's just expose a way to run sequential queries.
+    // Basic implementation for SQLite transaction
+    const db = await this.getDb();
+    db.transaction(async () => {
+        await fn({
+            execute: async (sql: string, args: any[]) => db.prepare(sql).run(...args),
+            run: async (sql: string, args: any[]) => db.prepare(sql).run(...args),
+        });
+    })();
   }
 }
 
