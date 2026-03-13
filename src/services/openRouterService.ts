@@ -55,12 +55,16 @@ export async function extractTasksWithOpenRouter(text: string, model: string = "
   }
 
   try {
-    const content = data.choices?.[0]?.message?.content;
+    let content = data.choices?.[0]?.message?.content;
     if (!content) {
       console.warn("OpenRouter returned no content", data);
       return [];
     }
-    const parsed = JSON.parse(content);
+
+    // Strip markdown code blocks if the AI included them
+    const cleanedContent = content.replace(/```json\n?|```/g, '').trim();
+    
+    const parsed = JSON.parse(cleanedContent);
     return Array.isArray(parsed) ? parsed : (parsed.tasks || []);
   } catch (e) {
     console.error("Failed to parse OpenRouter response", e, data);
