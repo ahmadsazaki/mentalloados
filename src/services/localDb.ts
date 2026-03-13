@@ -19,9 +19,10 @@ const DEFAULT_PROFILE: UserProfile = {
   id: 'user_1',
   name: 'Guest User',
   daily_capacity: 120,
-  ai_provider: 'openrouter',
-  ai_model: 'google/gemini-2.0-flash-lite:free',
-  openrouter_api_key: ''
+  ai_provider: 'gemini',
+  ai_model: 'gemini-2.0-flash-lite',
+  openrouter_api_key: '',
+  gemini_api_key: ''
 };
 
 export const localDb = {
@@ -55,9 +56,14 @@ export const localDb = {
     }
     const profile = JSON.parse(data);
     
-    // Migration: Update old 'openrouter/auto' default to a guaranteed free model
-    if (profile.ai_model === 'openrouter/auto') {
-      profile.ai_model = 'google/gemini-2.0-flash-lite:free';
+    // Migration: ensure gemini_api_key field exists
+    if (profile.gemini_api_key === undefined) {
+      profile.gemini_api_key = '';
+    }
+    // Migration: switch from dead openrouter/auto to gemini
+    if (profile.ai_model === 'openrouter/auto' || profile.ai_model === 'google/gemini-2.0-flash-lite:free') {
+      profile.ai_provider = 'gemini';
+      profile.ai_model = 'gemini-2.0-flash-lite';
       localDb.setProfile(profile);
     }
     

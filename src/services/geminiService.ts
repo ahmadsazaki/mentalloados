@@ -1,10 +1,14 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export async function extractTasksFromText(text: string, apiKey: string) {
+  if (!apiKey) {
+    console.error("Gemini API key is missing. Please set it in Settings > Integrations.");
+    return [];
+  }
 
-export async function extractTasksFromText(text: string) {
+  const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.0-flash-lite",
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -44,8 +48,8 @@ export async function extractTasksFromText(text: string) {
 
     const response = result.response;
     return JSON.parse(response.text() || "[]");
-  } catch (e) {
-    console.error("Failed to parse AI response", e);
+  } catch (e: any) {
+    console.error("Gemini AI error:", e.message || e);
     return [];
   }
 }

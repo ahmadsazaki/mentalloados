@@ -236,13 +236,29 @@ export const IntegrationsView: React.FC<Props> = ({ profile, onUpdateProfile }) 
           )}
 
           {profile?.ai_provider === 'gemini' && (
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
-              <div className="flex gap-3">
-                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5" />
-                <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                  Gemini mode uses your local <code>GEMINI_API_KEY</code> environment variable and the <code>gemini-1.5-flash</code> model directly.
-                </p>
+            <div className="space-y-2 p-4 bg-gray-50 dark:bg-slate-800 rounded-xl border border-black/5 dark:border-white/10">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Gemini API Key</label>
+                {profile?.gemini_api_key ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Key Active</span>
+                ) : (
+                  <span className="text-[10px] text-red-600 dark:text-red-400 font-medium bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">Key Required</span>
+                )}
               </div>
+              <input
+                type="password"
+                value={profile?.gemini_api_key || ''}
+                onChange={(e) => onUpdateProfile({ gemini_api_key: e.target.value })}
+                onBlur={(e) => {
+                  const trimmed = e.target.value.trim();
+                  onUpdateProfile({ gemini_api_key: trimmed || null });
+                }}
+                placeholder="AIza..."
+                className="w-full p-3 bg-white dark:bg-slate-900 rounded-xl border border-black/5 dark:border-white/10 text-sm focus:ring-2 focus:ring-indigo-500/20"
+              />
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                Get a free API key from <a href="https://aistudio.google.com/apikey" target="_blank" className="text-indigo-500 underline font-medium">Google AI Studio</a>. Uses the Gemini 2.0 Flash Lite model (free).
+              </p>
             </div>
           )}
         </div>
