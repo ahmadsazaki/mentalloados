@@ -1,5 +1,5 @@
 
-export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/auto", customApiKey: string | null = null) {
+export async function extractTasksWithOpenRouter(text: string, model: string = "openrouter/free", customApiKey: string | null = null) {
   // API key must be provided by the user via Settings > Integrations (stored in localStorage)
   // NEVER hardcode keys here — OpenRouter auto-revokes keys found in public repos
   const apiKey = customApiKey?.trim() || null;
