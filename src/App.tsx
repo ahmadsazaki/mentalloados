@@ -13,6 +13,7 @@ import { CategoryManager } from './components/CategoryManager';
 import { IntegrationsView } from './components/IntegrationsView';
 import { HelpView } from './components/HelpView';
 import { TaskDetailModal } from './components/TaskDetailModal';
+import { localDb } from './services/localDb';
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -45,34 +46,16 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      const [activeRes, archivedRes, trashRes, profileRes, categoriesRes] = await Promise.all([
-        fetch('/api/tasks'),
-        fetch('/api/tasks?includeArchived=true'),
-        fetch('/api/tasks?includeDeleted=true'),
-        fetch('/api/profile'),
-        fetch('/api/categories'),
-      ]);
+      const fetchedTasks = localDb.getTasks();
+      const fetchedCategories = localDb.getCategories();
+      const fetchedProfile = localDb.getProfile();
       
-      const [activeData, archivedData, trashData, profileData, categoriesData] = await Promise.all([
-        activeRes.json(),
-        archivedRes.json(),
-        trashRes.json(),
-        profileRes.json(),
-        categoriesRes.json()
-      ]);
-      
-      const allTasks = [
-        ...activeData.map((t: any) => ({ ...t, completed: !!t.completed, archived: !!t.archived, deleted: !!t.deleted })),
-        ...archivedData.map((t: any) => ({ ...t, completed: !!t.completed, archived: !!t.archived, deleted: !!t.deleted })),
-        ...trashData.map((t: any) => ({ ...t, completed: !!t.completed, archived: !!t.archived, deleted: !!t.deleted }))
-      ];
-      
-      setTasks(allTasks);
-      setProfile(profileData);
-      setCategories(categoriesData);
+      setTasks(fetchedTasks);
+      setCategories(fetchedCategories);
+      setProfile(fetchedProfile);
 
       // Check recurrence
-      await checkAndResetRecurringTasks(allTasks);
+      checkAndResetRecurringTasks(fetchedTasks);
     } catch (error) {
       console.error("Error fetching data", error);
     } finally {
@@ -109,15 +92,8 @@ export default function App() {
 
     if (tasksToReset.length > 0) {
       console.log(`Resetting ${tasksToReset.length} recurring tasks...`);
-      await Promise.all(tasksToReset.map(tr => 
-        fetch(`/api/tasks/${tr.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tr.updates)
-        })
-      ));
-      // Refresh local state without full reload if possible, but simpler to just fetchData again 
-      // or map locally. Let's map locally.
+      tasksToReset.forEach(tr => localDb.updateTask(tr.id, tr.updates));
+      
       setTasks(prev => prev.map(t => {
         const reset = tasksToReset.find(tr => tr.id === t.id);
         return reset ? { ...t, ...reset.updates } : t;
@@ -137,11 +113,12 @@ export default function App() {
         // Match extracted category name to existing category ID or use first available
         const matchedCat = categories.find(c => c.name.toLowerCase() === t.category.toLowerCase()) || categories[0];
 
-        const newTask: Partial<Task> = {
+        const newTask: Task = {
           id: uuidv4(),
           title: t.title,
-          description: t.description,
+          description: t.description || '',
           category_id: matchedCat.id,
+          category_name: matchedCat.name,
           effort_score: t.effort_score,
           urgency_score: t.urgency_score,
           decision_score: t.decision_score,
@@ -149,17 +126,21 @@ export default function App() {
           worry_score: t.worry_score,
           cognitive_load_score: cls,
           completed: false,
+          archived: false,
+          deleted: false,
+          sort_order: 0,
           due_date: t.due_date || null,
+          notes: '',
+          raw_context: text,
           attachments: attachments && attachments.length > 0 ? JSON.stringify(attachments) : null,
+          recurrence_rule: t.recurrence_rule || null,
+          last_reset_date: null,
+          created_at: new Date().toISOString()
         };
 
-        await fetch('/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newTask)
-        });
+        localDb.addTask(newTask);
       }
-      await fetchData();
+      fetchData();
       setActiveTab('tasks');
     } catch (error) {
       console.error("Extraction failed", error);
@@ -167,51 +148,43 @@ export default function App() {
   };
 
   const handleAddCategory = async (cat: Category) => {
-    await fetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cat)
-    });
-    await fetchData();
+    const cats = localDb.getCategories();
+    const newCats = [...cats, cat];
+    localDb.setCategories(newCats);
+    setCategories(newCats);
   };
 
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
-    await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    await fetchData();
+    if (!profile) return;
+    const newProfile = { ...profile, ...updates };
+    localDb.setProfile(newProfile);
+    setProfile(newProfile);
   };
 
   const handleDeleteCategory = async (id: string) => {
-    await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-    await fetchData();
+    const cats = localDb.getCategories().filter(c => c.id !== id);
+    localDb.setCategories(cats);
+    setCategories(cats);
   };
 
   const handleUpdateCategory = async (id: string, updates: Partial<Category>) => {
-    await fetch(`/api/categories/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    await fetchData();
+    const cats = localDb.getCategories().map(c => c.id === id ? { ...c, ...updates } : c);
+    localDb.setCategories(cats);
+    setCategories(cats);
   };
 
   const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
-    await fetch(`/api/tasks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
+    localDb.updateTask(id, updates);
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     if (selectedTask?.id === id) {
       setSelectedTask(prev => prev ? { ...prev, ...updates } : null);
     }
   };
 
-  const handleReorderTasks = async (reorderedTasks: Task[]) => {
-    // Optimistic cache update
+  const handleReorderTasks = (reorderedTasks: Task[]) => {
+    const payload = reorderedTasks.map(t => ({ id: t.id, sort_order: t.sort_order }));
+    localDb.reorderTasks(payload);
+    
     setTasks(prev => {
       const unchanged = prev.filter(t => !reorderedTasks.find(rt => rt.id === t.id));
       const newTasks = [...unchanged, ...reorderedTasks].sort((a, b) => {
@@ -220,37 +193,20 @@ export default function App() {
       });
       return newTasks;
     });
-
-    // Send the batch update to backend
-    const payload = reorderedTasks.map(t => ({ id: t.id, sort_order: t.sort_order }));
-    try {
-      await fetch('/api/tasks/reorder', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (e) {
-      console.error(e);
-      await fetchData(); // rollback on failure
-    }
   };
 
   const handleArchiveTask = async (id: string, archived: boolean) => {
-    await handleUpdateTask(id, { archived });
-    if (!archived) {
-      // If unarchiving, maybe we also want to mark it incomplete? 
-      // User didn't specify, so we just toggle archived status.
-    }
+    handleUpdateTask(id, { archived });
   };
 
   const handleRestoreTask = async (id: string) => {
-    await fetch(`/api/tasks/${id}/restore`, { method: 'POST' });
-    await fetchData();
+    localDb.restoreTask(id);
+    fetchData();
   };
 
   const handleDeleteTask = async (id: string, permanent = false) => {
-    await fetch(`/api/tasks/${id}${permanent ? '?permanent=true' : ''}`, { method: 'DELETE' });
-    await fetchData();
+    localDb.deleteTask(id, permanent);
+    fetchData();
     if (selectedTask?.id === id) setSelectedTask(null);
   };
 
@@ -263,25 +219,17 @@ export default function App() {
     });
   };
 
-  const handleBatchUpdate = async (updates: Partial<Task>) => {
+  const handleBatchUpdate = (updates: Partial<Task>) => {
     const ids = Array.from(selectedTaskIds);
-    await fetch('/api/tasks/bulk', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids, updates })
-    });
+    localDb.bulkUpdateTasks(ids, updates);
     setTasks(prev => prev.map(t => ids.includes(t.id) ? { ...t, ...updates } : t));
     setSelectedTaskIds(new Set());
     setIsSelectionMode(false);
   };
 
-  const handleBatchDelete = async (permanent: boolean) => {
+  const handleBatchDelete = (permanent: boolean) => {
     const ids = Array.from(selectedTaskIds);
-    await fetch('/api/tasks/bulk', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids, permanent })
-    });
+    localDb.bulkDeleteTasks(ids, permanent);
     if (permanent) {
       setTasks(prev => prev.filter(t => !ids.includes(t.id)));
     } else {
@@ -598,13 +546,13 @@ export default function App() {
   );
 }
 
-function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactElement, label: string }) {
   return (
     <button
       onClick={onClick}
       className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${active ? 'text-indigo-600 bg-indigo-50' : 'text-gray-400 hover:text-gray-600'}`}
     >
-      {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
+      {React.cloneElement(icon, { className: 'w-5 h-5' } as any)}
       <span className="text-[10px] font-medium">{label}</span>
     </button>
   );

@@ -190,7 +190,12 @@ async function initializeDb() {
 
 
 export async function initApp() {
-  await initializeDb();
+  try {
+    await initializeDb();
+  } catch (error) {
+    console.warn("⚠️ Database initialization failed. Some features (Google Auth, Calendar) may be limited.");
+    console.warn(error);
+  }
   const app = express();
   const PORT = process.env.PORT || 3001;
 
