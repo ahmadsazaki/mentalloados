@@ -1,6 +1,6 @@
 import React from 'react';
 import { Task } from '../types';
-import { CheckCircle2, Circle, Trash2, Archive, Repeat, Wind, Leaf } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Archive, Repeat, Wind, Leaf, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
