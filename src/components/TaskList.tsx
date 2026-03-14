@@ -58,18 +58,13 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
       {(provided, snapshot) => (
         <motion.div
           ref={provided.innerRef}
-          {...(() => {
-            const { onDragStart: _, ...rest } = provided.draggableProps;
-            return rest;
-          })()}
-          layout
+          {...provided.draggableProps}
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9, y: -10 }}
-          whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
-          whileTap={view === 'active' ? { scale: 0.98 } : {}}
-          transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
-          className={`group flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-xl z-50' : 'border-black/5 dark:border-white/10 hover:shadow-md'} cursor-pointer ${task.completed && !isSelectionMode ? 'opacity-50' : ''} ${selectedIds?.has(task.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
+          whileHover={!snapshot.isDragging ? { scale: 1.01, transition: { duration: 0.2 } } : {}}
+          whileTap={!snapshot.isDragging && view === 'active' ? { scale: 0.98 } : {}}
+          className={`group flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-xl z-50 ring-2 ring-indigo-500/20' : 'border-black/5 dark:border-white/10 hover:shadow-md'} cursor-pointer ${task.completed && !isSelectionMode ? 'opacity-50' : ''} ${selectedIds?.has(task.id) ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
           onClick={(e) => {
             // Prevent click if we're clicking a button or checkbox inside
             if (isSelectionMode) {

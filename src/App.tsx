@@ -202,12 +202,10 @@ export default function App() {
     localDb.reorderTasks(payload);
     
     setTasks(prev => {
-      const unchanged = prev.filter(t => !reorderedTasks.find(rt => rt.id === t.id));
-      const newTasks = [...unchanged, ...reorderedTasks].sort((a, b) => {
-        if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
-        return b.cognitive_load_score - a.cognitive_load_score;
-      });
-      return newTasks;
+      // Map existing tasks but replace the ones that were reordered
+      const reorderedMap = new Map(reorderedTasks.map(t => [t.id, t]));
+      return prev.map(t => reorderedMap.get(t.id) || t)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
     });
   };
 
