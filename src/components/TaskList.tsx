@@ -58,7 +58,10 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
       {(provided, snapshot) => (
         <motion.div
           ref={provided.innerRef}
-          {...provided.draggableProps}
+          {...(() => {
+            const { onDragStart: _, ...rest } = provided.draggableProps;
+            return rest;
+          })()}
           layout
           initial={{ opacity: 0, y: 10, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -76,10 +79,11 @@ export const TaskList: React.FC<Props> = ({ tasks, onToggle, onUpdate, onDelete,
             }
           }}
         >
-          {view === 'active' && !isSelectionMode && (
+          {!isSelectionMode && view !== 'trash' && (
             <div 
               {...provided.dragHandleProps}
-              className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-2 text-gray-300 dark:text-gray-700 hover:text-gray-400 dark:hover:text-gray-500"
+              className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-2 text-gray-400 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+              title="Drag to reorder"
             >
               <GripVertical className="w-5 h-5" />
             </div>

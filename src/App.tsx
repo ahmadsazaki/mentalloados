@@ -391,15 +391,35 @@ export default function App() {
                     Trash ({tasks.filter(t => t.deleted).length})
                   </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setIsSelectionMode(!isSelectionMode);
-                    setSelectedTaskIds(new Set());
-                  }}
-                  className={`text-sm font-medium transition-colors ${isSelectionMode ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                  {isSelectionMode ? 'Cancel' : 'Select'}
-                </button>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => {
+                      const sorted = [...tasks].sort((a,b) => b.cognitive_load_score - a.cognitive_load_score);
+                      handleReorderTasks(sorted.filter(t => !t.completed && !t.archived && !t.deleted));
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-indigo-500 transition-colors"
+                  >
+                    Sort Load
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sorted = [...tasks].sort((a,b) => b.urgency_score - a.urgency_score);
+                      handleReorderTasks(sorted.filter(t => !t.completed && !t.archived && !t.deleted));
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-indigo-500 transition-colors"
+                  >
+                    Sort Urgency
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsSelectionMode(!isSelectionMode);
+                      setSelectedTaskIds(new Set());
+                    }}
+                    className={`text-sm font-medium transition-colors ${isSelectionMode ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                  >
+                    {isSelectionMode ? 'Cancel' : 'Select'}
+                  </button>
+                </div>
               </div>
 
               {taskView === 'active' && (
